@@ -20,28 +20,28 @@ def load_font(path, size):
 def draw_bangla_text(base_img, position, text, font, fill=(0, 0, 0)):
     """Draw Bangla text on a new layer and paste it onto the base image."""
     if not text or not isinstance(text, str):
-        return base_img  # Return unchanged if text is invalid
+        return base_img
     txt_img = Image.new("RGBA", base_img.size, (255, 255, 255, 0))
     d = ImageDraw.Draw(txt_img)
-    # Use proper alignment and anchor for Bangla text
-    d.text(position, text, font=font, fill=fill, align="left", anchor="lt")
+    # Ensure proper rendering with left alignment and anchor
+    d.text(position, text, font=font, fill=fill, align="left", anchor="lt", encoding="utf-8")
     base_img.paste(txt_img, (0, 0), txt_img)
     return base_img
 
 @app.route('/generate', methods=['GET'])
 def generate_nid():
     try:
-        # Query parameters with UTF-8 encoding for Bangla
-        name_bn = request.args.get("name_bn", "রাহাত হোসেন").encode().decode('utf-8')
-        name_en = request.args.get("name_en", "Rahat Hossain").encode().decode('utf-8')
-        father = request.args.get("father", "আব্দুল করিম").encode().decode('utf-8')
-        mother = request.args.get("mother", "আসমা আক্তার").encode().decode('utf-8')
+        # Query parameters with UTF-8 encoding
+        name_bn = request.args.get("name_bn", "রাহাত হোসেন")
+        name_en = request.args.get("name_en", "Rahat Hossain")
+        father = request.args.get("father", "আব্দুল করিম")
+        mother = request.args.get("mother", "আসমা আক্তার")
         dob = request.args.get("dob", "15-08-1998")
         nid = request.args.get("nid", "8765432109")
-        address = request.args.get("address", "চট্টগ্রাম, বাংলাদেশ").encode().decode('utf-8')
+        address = request.args.get("address", "চট্টগ্রাম, বাংলাদেশ")
         blood = request.args.get("blood", "AB")
         sign = request.args.get("sign", "Zeron")
-        issue = request.args.get("issue", "০৯/০৯/২০২৫").encode().decode('utf-8')
+        issue = request.args.get("issue", "০৯/০৯/২০২৫")
 
         photo_url = request.args.get(
             "photo",
@@ -51,7 +51,7 @@ def generate_nid():
         # Load NID template
         img = Image.open(os.path.join(BASE_DIR, "nid.png")).convert("RGB")
 
-        # Fonts (ensure these files are in the fonts directory)
+        # Fonts
         font_bn = load_font("fonts/NotoSansBengali-Regular.ttf", 24)
         font_en = load_font("fonts/DejaVuSans.ttf", 22)
         font_sign = load_font("fonts/sign.ttf", 16)
@@ -59,12 +59,12 @@ def generate_nid():
         black = (0, 0, 0)
         red = (255, 0, 0)
 
-        # Draw Bangla text
-        img = draw_bangla_text(img, (240, 127), name_bn, font_bn, black)  # Name (BN)
-        img = draw_bangla_text(img, (240, 187), father, font_bn, black)    # Father
-        img = draw_bangla_text(img, (240, 217), mother, font_bn, black)    # Mother
-        img = draw_bangla_text(img, (90, 448), address, font_bn, black)    # Address
-        img = draw_bangla_text(img, (395, 596), issue, font_bn, black)     # Issue Date
+        # Draw Bangla text with adjusted positions
+        img = draw_bangla_text(img, (240, 130), name_bn, font_bn, black)  # Name (BN)
+        img = draw_bangla_text(img, (240, 190), father, font_bn, black)    # Father
+        img = draw_bangla_text(img, (240, 220), mother, font_bn, black)    # Mother
+        img = draw_bangla_text(img, (90, 450), address, font_bn, black)    # Address
+        img = draw_bangla_text(img, (395, 600), issue, font_bn, black)     # Issue Date
 
         # Draw English text
         draw = ImageDraw.Draw(img)
@@ -79,7 +79,7 @@ def generate_nid():
             photo_response = requests.get(photo_url, timeout=10)
             photo_bytes = io.BytesIO(photo_response.content)
             passport_img = Image.open(photo_bytes).convert("RGB")
-            passport_img = passport_img.resize((120, 140))  # Resize to fit the NID photo slot
+            passport_img = passport_img.resize((120, 140))  # Resize to fit
             img.paste(passport_img, (30, 120))  # Position for passport photo
         except Exception as e:
             return jsonify({"error": f"Photo fetch failed: {str(e)}"})

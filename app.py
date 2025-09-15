@@ -4,7 +4,6 @@ import base64
 import requests
 from flask import Flask, request, jsonify
 from PIL import Image, ImageDraw, ImageFont
-import bangla  # 🔥 বাংলা টেক্সট শেপিং ঠিক করার জন্য
 
 app = Flask(__name__)
 
@@ -16,6 +15,14 @@ def load_font(path, size):
         return ImageFont.truetype(os.path.join(BASE_DIR, path), size)
     except Exception as e:
         return ImageFont.load_default()
+
+def draw_bangla_text(base_img, position, text, font, fill=(0,0,0)):
+    """বাংলা টেক্সট আলাদা লেয়ারে লিখে paste করা"""
+    txt_img = Image.new("RGBA", base_img.size, (255, 255, 255, 0))
+    d = ImageDraw.Draw(txt_img)
+    d.text(position, text, font=font, fill=fill)
+    base_img.paste(txt_img, (0,0), txt_img)
+    return base_img
 
 @app.route('/generate', methods=['GET'])
 def generate_nid():
@@ -39,7 +46,6 @@ def generate_nid():
 
         # Load NID template
         img = Image.open("nid.png").convert("RGB")
-        draw = ImageDraw.Draw(img)
 
         # Fonts
         font_bn = load_font("fonts/NotoSansBengali-Regular.ttf", 24)
@@ -49,24 +55,20 @@ def generate_nid():
         black = (0, 0, 0)
         red = (255, 0, 0)
 
-        # ✅ Bangla shaping fix
-        name_bn = bangla.convert(name_bn)
-        father = bangla.convert(father)
-        mother = bangla.convert(mother)
-        address = bangla.convert(address)
-        issue = bangla.convert(issue)
+        # ✅ Draw Bangla properly
+        img = draw_bangla_text(img, (240, 127), name_bn, font_bn, black)
+        img = draw_bangla_text(img, (240, 187), father, font_bn, black)
+        img = draw_bangla_text(img, (240, 217), mother, font_bn, black)
+        img = draw_bangla_text(img, (90, 448), address, font_bn, black)
+        img = draw_bangla_text(img, (395, 596), issue, font_bn, black)
 
-        # Draw text
-        draw.text((240, 127), name_bn, font=font_bn, fill=black)
+        # English text
+        draw = ImageDraw.Draw(img)
         draw.text((240, 160), name_en, font=font_en, fill=black)
-        draw.text((240, 187), father, font=font_bn, fill=black)
-        draw.text((240, 217), mother, font=font_bn, fill=black)
         draw.text((287, 252), dob, font=font_en, fill=red)
         draw.text((252, 285), nid, font=font_en, fill=red)
         draw.text((60, 270), sign, font=font_sign, fill=black)
-        draw.text((90, 448), address, font=font_bn, fill=black)
         draw.text((230, 525), blood, font=font_en, fill=black)
-        draw.text((395, 596), issue, font=font_bn, fill=black)
 
         # Fetch and paste passport photo
         try:

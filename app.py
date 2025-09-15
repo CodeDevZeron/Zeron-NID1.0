@@ -11,20 +11,37 @@ IMGBB_API_KEY = "b402067f6bfc278112333ae2d974c093"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FONT_DIR = os.path.join(BASE_DIR, "fonts")
 
+# Define a temporary font path for downloaded fonts
+TEMP_FONT_PATH = "/tmp/NotoSansBengali-Regular.ttf"
+# Google Fonts CDN URL for the font
+FONT_URL = "https://fonts.gstatic.com/s/notosansbengali/v20/S6uD4n_E_o9w0N_Cj_a-G9pzyqC7Lg.ttf"
+
 def load_font(filename, size):
     """
-    Load a font file from the fonts directory.
-    This version is more robust for serverless environments like Vercel.
+    Load a font file. If the local file is not found,
+    download it from a public URL and use it.
     """
-    font_path = os.path.join(FONT_DIR, filename)
-    print(f"Attempting to load font from: {font_path}")  # Vercel will show this in logs
+    local_path = os.path.join(FONT_DIR, filename)
+    print(f"Attempting to load font from: {local_path}")
+
+    # First, try to load the font from the local directory
+    if os.path.exists(local_path):
+        try:
+            return ImageFont.truetype(local_path, size)
+        except Exception as e:
+            print(f"Error loading local font: {e}")
+
+    # If local font fails, download from URL as a fallback
+    print("Local font failed. Attempting to download font from URL...")
     try:
-        return ImageFont.truetype(font_path, size)
-    except IOError:
-        print(f"Error: The font file '{filename}' was not found or could not be loaded. Please ensure it is in the 'fonts' directory.")
-        return ImageFont.load_default()
+        response = requests.get(FONT_URL, timeout=10)
+        response.raise_for_status() # Check for request errors
+        with open(TEMP_FONT_PATH, 'wb') as f:
+            f.write(response.content)
+        print("Font downloaded successfully to temporary path.")
+        return ImageFont.truetype(TEMP_FONT_PATH, size)
     except Exception as e:
-        print(f"An unexpected error occurred while loading the font: {e}")
+        print(f"Error downloading or loading font from URL: {e}")
         return ImageFont.load_default()
 
 @app.route('/generate', methods=['GET'])
@@ -54,7 +71,7 @@ def generate_nid():
         img = Image.open(img_path).convert("RGB")
         draw = ImageDraw.Draw(img)
 
-        # Load fonts. You MUST ensure these files are in your fonts directory.
+        # Load fonts.
         font_bn = load_font("NotoSansBengali-Regular.ttf", 24)
         font_en = load_font("DejaVuSans.ttf", 22)
         font_sign = load_font("sign.ttf", 16)
@@ -80,7 +97,7 @@ def generate_nid():
         try:
             photo_response = requests.get(photo_url, timeout=10)
             if photo_response.status_code != 200:
-                return jsonify({"error": f"Photo fetch failed with status code: {photo_response.status_code}"})
+                return jsonify({"error": f"Photo fetch failed with status code: {photo_response.status_code}"}), 500
             photo_bytes = io.BytesIO(photo_response.content)
             passport_img = Image.open(photo_bytes).convert("RGB").resize((120, 140))
             img.paste(passport_img, (30, 120))

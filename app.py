@@ -1,10 +1,21 @@
+import os
+import io
+import base64
+import requests
 from flask import Flask, request, jsonify
 from PIL import Image, ImageDraw, ImageFont
-import requests, base64, io, os
+import bangla  # 🔥 বাংলা টেক্সট শেপিং ঠিক করার জন্য
 
 app = Flask(__name__)
 
 IMGBB_API_KEY = "b402067f6bfc278112333ae2d974c093"
+BASE_DIR = os.path.dirname(__file__)
+
+def load_font(path, size):
+    try:
+        return ImageFont.truetype(os.path.join(BASE_DIR, path), size)
+    except Exception as e:
+        return ImageFont.load_default()
 
 @app.route('/generate', methods=['GET'])
 def generate_nid():
@@ -23,22 +34,29 @@ def generate_nid():
 
         photo_url = request.args.get(
             "photo",
-            "https://i.ibb.co/cL21hkZ/IMG-20241022-192024-450.jpg"
+            "https://i.ibb.co.com/cL21hkZ/IMG-20241022-192024-450.jpg"
         )
 
-        # Load template
+        # Load NID template
         img = Image.open("nid.png").convert("RGB")
         draw = ImageDraw.Draw(img)
 
-        # Correct Unicode fonts
-        font_bn = ImageFont.truetype("fonts/NotoSansBengali-Regular.ttf", 24)
-        font_en = ImageFont.truetype("fonts/DejaVuSans.ttf", 22)
-        font_sign = ImageFont.truetype("fonts/sign.ttf", 18)
+        # Fonts
+        font_bn = load_font("fonts/NotoSansBengali-Regular.ttf", 24)
+        font_en = load_font("fonts/DejaVuSans.ttf", 22)
+        font_sign = load_font("fonts/sign.ttf", 16)
 
         black = (0, 0, 0)
         red = (255, 0, 0)
 
-        # Text placement
+        # ✅ Bangla shaping fix
+        name_bn = bangla.convert(name_bn)
+        father = bangla.convert(father)
+        mother = bangla.convert(mother)
+        address = bangla.convert(address)
+        issue = bangla.convert(issue)
+
+        # Draw text
         draw.text((240, 127), name_bn, font=font_bn, fill=black)
         draw.text((240, 160), name_en, font=font_en, fill=black)
         draw.text((240, 187), father, font=font_bn, fill=black)
@@ -52,11 +70,11 @@ def generate_nid():
 
         # Fetch and paste passport photo
         try:
-            photo_response = requests.get(photo_url, timeout=10)
+            photo_response = requests.get(photo_url)
             photo_bytes = io.BytesIO(photo_response.content)
             passport_img = Image.open(photo_bytes).convert("RGB")
-            passport_img = passport_img.resize((120, 140))
-            img.paste(passport_img, (30, 120))
+            passport_img = passport_img.resize((120, 140))  # Resize to fit
+            img.paste(passport_img, (30, 120))  # Position for passport photo
         except Exception as e:
             return jsonify({"error": f"Photo fetch failed: {str(e)}"})
 
@@ -79,10 +97,8 @@ def generate_nid():
             "image_url": response["data"]["url"],
             "api_by": "@DevZeron"
         })
-
     except Exception as e:
         return jsonify({"error": str(e)})
-
 
 if __name__ == '__main__':
     app.run(debug=True)
